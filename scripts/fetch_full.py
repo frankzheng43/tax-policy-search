@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
 """Fetch full text of a tax policy doc from chinatax.gov.cn.
-Usage: python3 fetch_full.py <URL>"""
-import re, sys, urllib.request, urllib.parse, json
+
+用法：
+    python3 fetch_full.py <URL>            # 打印全文（正文+立法沿革+关联）
+    python3 fetch_full.py --save <URL>     # 直接存成 Markdown（等价于 Step 3+4）
+    python3 fetch_full.py --json <URL>     # 输出 save.py 可吃的 JSON
+"""
+import re, sys, os, json, urllib.request, urllib.parse
 
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
 
@@ -28,7 +33,25 @@ def html_table_to_md(html):
     out.insert(1, sep)
     return '\n'.join(out)
 
-def fetch(url):
+def _meta(html, name):
+    m = re.search(r'<meta[^>]*name="%s"[^>]*content="([^"]*)"' % name, html)
+    return m.group(1).strip() if m else ""
+
+def _guess_doc_num(text):
+    """从正文头部猜文号。
+
+    ponytail: 只认「…令/公告/通知/函」下一行是「第N号」或「YYYY年第N号」的写法，
+    认不出就留空（文件名退化为 全文_<标题>.md）。要更准就回到搜索接口拿 docNum。
+    """
+    lines = [l.strip() for l in text.splitlines() if l.strip()]
+    for i, l in enumerate(lines[:8]):
+        if re.fullmatch(r'\d{4}年第\d+号|第\d+号', l):
+            prev = lines[i - 1] if i else ""
+            return prev + l if re.search(r'(令|公告|通知|函)$', prev) else l
+    return ""
+
+def parse(url):
+    """抓取 + 解析，返回可直接喂给 save.py 的 dict。"""
     resp = urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": UA}), timeout=30)
     html = resp.read().decode("utf-8", errors="replace")
 
@@ -54,6 +77,14 @@ def fetch(url):
     if zs:
         annotation = re.sub(r'<[^>]+>', '', zs.group(1)).replace('&ensp;', ' ').replace('&nbsp;', ' ').strip()
 
+    # 时效 / 成文日期（arc_date 里的两个 span）
+    ad = re.search(r'class="arc_date"[^>]*>(.*?)</p>', html, re.DOTALL)
+    ad = ad.group(1) if ad else ""
+    xg = re.search(r'class="xg"[^>]*>(.*?)<', ad, re.DOTALL)
+    dt = re.search(r'class="date"[^>]*>\s*成文日期：\s*([\d-]+)', ad)
+    status = xg.group(1).strip() if xg else ""
+    date = dt.group(1) if dt else ""
+
     # 关联解读 + 关联文件
     related_interp, related_docs = [], []
     aid_m = re.search(r'<meta[^>]*name="articleId"[^>]*content="(\d+)"', html)
@@ -68,21 +99,63 @@ def fetch(url):
                 r = results[1]
                 related_interp = [(d.get("title",""), d.get("url","").replace("zcfgknw","zcfgk")) for d in r.get("policyInterpretation", [])]
                 related_docs = [(d.get("title",""), d.get("url","").replace("zcfgknw","zcfgk")) for d in r.get("policyDocument", [])]
-        except:
+        except Exception:
             pass
 
-    # 输出
-    if annotation:
-        print(f"> **注释**：{annotation}\n")
-    print(text)
-    if related_interp:
+    # 标题 + 文号（h3 是标题，h5.actfwzh 只有公告类才有，其余退回正文头部猜）
+    h3 = re.search(r'<h3[^>]*>(.*?)</h3>', html, re.DOTALL)
+    fwzh = re.search(r'class="actfwzh"[^>]*>(.*?)</h5>', html, re.DOTALL)
+    strip_tags = lambda s: re.sub(r'\s+', ' ', re.sub(r'<[^>]+>', '', s or '')).strip()
+    title = _meta(html, "ArticleTitle") or strip_tags(h3.group(1) if h3 else "")
+    doc_num = strip_tags(fwzh.group(1) if fwzh else "") or _guess_doc_num(text)
+
+    return {
+        "title": title,
+        "doc_num": doc_num,
+        "tax_type": "",
+        "effect_level": _meta(html, "ColumnName"),
+        "date": date,
+        "status": status,
+        "source": url,
+        "annotation": annotation,
+        "text": text,
+        "related_interp": related_interp,
+        "related_docs": related_docs,
+    }
+
+def fetch(url):
+    """打印人类可读的全文。"""
+    d = parse(url)
+    if d["annotation"]:
+        print(f"> **注释**：{d['annotation']}\n")
+    print(d["text"])
+    if d["related_interp"]:
         print("\n---\n\n🔗 关联解读：\n")
-        for t, u in related_interp:
+        for t, u in d["related_interp"]:
             print(f"  [{t}](http://fgk.chinatax.gov.cn{u})\n")
-    if related_docs:
+    if d["related_docs"]:
         print("\n🔗 关联文件：\n")
-        for t, u in related_docs:
+        for t, u in d["related_docs"]:
             print(f"  [{t}](http://fgk.chinatax.gov.cn{u})\n")
 
+def main():
+    args = sys.argv[1:]
+    save_mode = "--save" in args
+    json_mode = "--json" in args
+    urls = [a for a in args if not a.startswith("--")]
+    if not urls:
+        print(__doc__.strip())
+        return 1
+    url = urls[0]
+    if save_mode:
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        from save import save as save_file
+        save_file(parse(url))
+    elif json_mode:
+        print(json.dumps(parse(url), ensure_ascii=False, indent=2))
+    else:
+        fetch(url)
+    return 0
+
 if __name__ == "__main__":
-    fetch(sys.argv[1])
+    sys.exit(main())

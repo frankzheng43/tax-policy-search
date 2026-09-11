@@ -76,9 +76,19 @@ print(r.stdout)
 返回：正文 + 立法沿革 + 关联解读 + 关联文件。
 展示脚本原始输出，不要重新组织、摘要或归并。用户要看的就是原文。
 
+**用户直接给链接时**（如“下载这个 http://fgk.chinatax.gov.cn/...”），跳过 Step 1–2，直接用这个脚本。
+
 ## Step 4: 保存全文
 
-用户说"保存全文"时，将 Step 3 的数据传入：
+**有 URL 时一步到位：**
+
+```bash
+python3 "${SKILL_DIR}/scripts/fetch_full.py" --save "URL"
+```
+
+标题、文号、类别、成文日期、时效自动从页面抓，直接存成带 frontmatter 的 Markdown。
+
+**已知数据、要手动拼字段时**，把数据传给 save.py：
 
 ```python
 import subprocess, json, os
@@ -119,6 +129,9 @@ print(r.stdout)
 
 ## 配套脚本
 
+- `scripts/search.py` — 搜索法规库，stdin 收 JSON 参数。
+- `scripts/fetch_full.py` — 给定 URL 抓全文；`--save` 直接存 Markdown，`--json` 输出结构化数据（喂给 save.py）。
+- `scripts/save.py` — 把结构化数据写成带 frontmatter 的 Markdown 文件。
 - `scripts/monitor.py` — 轮询法规库，有新内容时把 Markdown 打到 stdout（无新内容则静默，退出码 0）。
   自己接通知渠道，例如 `python3 monitor.py | your-notifier`，或用 cron 定时跑。
   状态文件默认 `~/.tax_law_state.json`，用 `TAX_STATE_FILE` 可改。

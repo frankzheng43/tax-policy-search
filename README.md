@@ -25,6 +25,7 @@ SKILL.md 里 `${SKILL_DIR}` 指该目录本身，用之前换成实际绝对路�
 - **自然语言搜索**：说「查增值税公告」「找2026年企业所得税文件」即可
 - **筛选条件**：税种、年份、文件类型、时效、行业等
 - **查看全文**：含正文、表格（MD格式）、关联解读
+- **给链接直接抓**：`fetch_full.py --save <url>` 一步存成 Markdown
 - **保存全文**：带 YAML frontmatter，含立法沿革（注释）
 - **翻页导航**：上一页/下一页
 - **定时监控**：`scripts/monitor.py` 检测新文件，有新内容输出 Markdown，可接任意通知渠道
@@ -43,6 +44,16 @@ SKILL.md 里 `${SKILL_DIR}` 指该目录本身，用之前换成实际绝对路�
 
 ```
 找财税〔2024〕1号
+```
+
+已经拿到链接时，跳过搜索，直接抓：
+
+```bash
+# 打印全文
+python3 scripts/fetch_full.py "http://fgk.chinatax.gov.cn/zcfgk/c100011/c5245544/content.html"
+
+# 直接存成 Markdown（标题、文号、类别、成文日期、时效自动抓）
+python3 scripts/fetch_full.py --save "http://fgk.chinatax.gov.cn/zcfgk/c100011/c5245544/content.html"
 ```
 
 ## 保存的文件格式
