@@ -84,7 +84,9 @@ python3 "${SKILL_DIR}/scripts/fetch_full.py" --save "URL"
 python3 "${SKILL_DIR}/scripts/fetch_full.py" --depth 1 "URL"
 ```
 
-实测规模：`--depth 1` 通常 3–6 篇；`--depth 2` 可达 30+ 篇（法规间交叉引用很多），除非确实要铺开，否则用 1。附件（pdf/doc/图片）不跟，http/https 重复链接自动去重，每篇间隔 0.5s。
+实测规模（9 个种子文档）：`--depth 1` 通常 3–29 篇，`--depth 2` 到 29–55 篇，从 3 层往上只多 +1~6 篇。
+链接图是轴辐式（大家都指向同几部核心法），很快收敛在 30–60 篇，不会指数爆炸，最大实测 55 篇。
+所以用 1 或 2 就够，3 以上基本白跑。附件（pdf/doc/图片）不跟，http/https 重复链接自动去重，每篇间隔 0.5s。
 
 **已知数据、只需写文件时**，直接把结构化数据喂给 `save.py`：
 
