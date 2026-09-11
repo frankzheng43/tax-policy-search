@@ -12,9 +12,9 @@ tags: [税法, 政策法规, 国家税务总局, chinatax, 法规搜索]
 
 ## 执行方式
 
-**所有 Python 代码都用 `execute_code` 工具执行，不要用 `terminal`。**
+**用你的代码执行工具运行下面的 Python 代码。**
 
-脚本路径：`${HERMES_SKILL_DIR}/scripts/`（加载时自动替换为绝对路径）
+脚本在本 skill 目录的 `scripts/` 下。下文 `${SKILL_DIR}` 均指该目录，用时替换为实际绝对路径。
 
 ## 状态变量（会话内保持）
 
@@ -27,7 +27,7 @@ tags: [税法, 政策法规, 国家税务总局, chinatax, 法规搜索]
 
 ```python
 import subprocess, json, os
-script = "${HERMES_SKILL_DIR}/scripts/search.py"
+script = "${SKILL_DIR}/scripts/search.py"
 params = {
     # 以下按用户意图填写：
     # "xxgkSonTaxPolicy": "增值税",     # 税种
@@ -67,7 +67,7 @@ else:
 
 ```python
 import subprocess, os
-script = "${HERMES_SKILL_DIR}/scripts/fetch_full.py"
+script = "${SKILL_DIR}/scripts/fetch_full.py"
 url = "ITEMS_URL"  # 替换为用户选择的条目URL
 r = subprocess.run(["python3", script, url], capture_output=True, text=True)
 print(r.stdout)
@@ -82,7 +82,7 @@ print(r.stdout)
 
 ```python
 import subprocess, json, os
-script = "${HERMES_SKILL_DIR}/scripts/save.py"
+script = "${SKILL_DIR}/scripts/save.py"
 data = {
     "title": "标题", "doc_num": "文号", "tax_type": "税种",
     "effect_level": "类别", "date": "成文日期", "status": "时效",
@@ -93,7 +93,7 @@ r = subprocess.run(["python3", script], input=json.dumps(data), capture_output=T
 print(r.stdout)
 ```
 
-文件存入 `/sdcard/Documents/税务文件/`。
+默认存入 `~/Documents/税务文件/`，用 `TAX_SAVE_DIR` 环境变量可改到别处。
 
 ## 分析（可选）
 
@@ -117,15 +117,11 @@ print(r.stdout)
 - `references/supplementary-tax-disclosure.md` — 上市公司补税公告信息披露框架（用户问"补税披露""巨潮 PDF 提取"时加载）
 - `references/analysis-framework.md` — 税务专家分析框架（用户说"分析一下"时加载）
 
-## 相关 Skill
+## 配套脚本
 
-- **cninfo-research**：搜索巨潮资讯网上市公司公告（补税、处罚、年报等）。本 skill 搜政策文件，cninfo-research 搜企业公告。
-
-## 脚本（companion cron）
-
-- `scripts/monitor.py` — no_agent cron，每 120min 自动扫描全部新内容→IMA 笔记。
-  与 skill 共用同一 API，但用 stdlib（urllib）而非 requests，因为 cron 走系统 Python。
-  纯被动推送，不接收用户交互。
+- `scripts/monitor.py` — 轮询法规库，有新内容时把 Markdown 打到 stdout（无新内容则静默，退出码 0）。
+  自己接通知渠道，例如 `python3 monitor.py | your-notifier`，或用 cron 定时跑。
+  状态文件默认 `~/.tax_law_state.json`，用 `TAX_STATE_FILE` 可改。
 
 ## 踩坑记录
 
@@ -135,4 +131,4 @@ print(r.stdout)
 4. **关联解读通过 AJAX 加载** — 静态 HTML 里没有
 5. **网络超时需重试** — chinatax.gov.cn 偶尔超时
 6. **立法沿革藏在 `zscont` 区域** — 需单独提取
-7. **cron 脚本走 stdlib** — no_agent cron 用系统 Python，无 requests 包。用 urllib.request 替代。
+7. **脚本只用 stdlib** — 全部基于 `urllib.request`，无第三方依赖，任何 Python 3 环境直接跑。

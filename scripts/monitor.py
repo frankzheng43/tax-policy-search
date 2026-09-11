@@ -1,13 +1,21 @@
 #!/usr/bin/env python3
-"""Monitor 国家税务总局政策法规库. Silent if nothing new; posts to IMA on changes."""
-import json, os, subprocess
+"""Monitor 国家税务总局政策法规库. 有新内容时把 Markdown 打到 stdout，无新内容则静默退出。
+
+用法：
+    python3 monitor.py                     # 直接打印
+    python3 monitor.py > new.md            # 存文件
+    python3 monitor.py | your-notifier     # 接自己的通知渠道
+
+状态文件默认 ~/.tax_law_state.json，用 TAX_STATE_FILE 可改。
+只用 stdlib，无需第三方包。
+"""
+import json, os, sys
 from datetime import datetime, timezone
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
-STATE_FILE = os.path.expanduser("~/.hermes/tax_law_state.json")
+STATE_FILE = os.path.expanduser(os.environ.get("TAX_STATE_FILE", "~/.tax_law_state.json"))
 API_URL = "https://www.chinatax.gov.cn/search5/search/s"
-IMA_API = os.path.expanduser("~/.hermes/skills/ima-skill/ima_api.cjs")
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
 PARAMS = {
     "siteCode": "bm29000002", "searchWord": "", "type": "",
@@ -26,34 +34,18 @@ def load_state():
 def save_state(keys):
     with open(STATE_FILE, "w") as f: json.dump(sorted(keys), f)
 
-def post_ima(title, content):
-    """Post markdown as IMA note. Returns note_id or None."""
-    body = json.dumps({"content_format": 1, "title": title, "content": content}, ensure_ascii=False)
-    try:
-        r = subprocess.run(["node", IMA_API, "openapi/note/v1/import_doc", body],
-                           capture_output=True, text=True, timeout=30)
-        if r.returncode != 0:
-            print(f"[IMA Error] {r.stderr.strip()}")
-            return None
-        resp = json.loads(r.stdout)
-        if resp.get("code") == 0:
-            return resp["data"]["note_id"]
-        print(f"[IMA API Error] {resp.get('msg', 'unknown')}")
-    except Exception as e:
-        print(f"[IMA Error] {e}")
-    return None
-
 def main():
     try:
         req = Request(API_URL + "?" + urlencode(PARAMS),
                       headers={"User-Agent": UA, "Accept": "application/json"})
         data = json.loads(urlopen(req, timeout=20).read().decode("utf-8", errors="replace"))
     except Exception as e:
-        return print(f"[Tax Law] API请求失败: {e}")
+        print(f"[monitor] API 请求失败: {e}", file=sys.stderr)
+        return 1
 
     articles = data.get("searchResultAll", {}).get("searchTotal", [])
     if not articles:
-        return  # ponytail: no results, nothing to do
+        return 0
 
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     seen = load_state()
@@ -62,9 +54,9 @@ def main():
 
     if not new:
         save_state(current_keys)
-        return  # ponytail: silent, no news is no news
+        return 0  # 没新闻就是没新闻
 
-    # Build markdown, grouped by category
+    # 按类别分组
     cats = {}
     for a in new:
         cats.setdefault(a.get("label", "其他"), []).append(a)
@@ -85,16 +77,11 @@ def main():
             if summary: parts.append(f"\n> {summary}\n")
 
     parts.append(f"\n---\n共 {len(new)} 条新内容")
-    note_content = "\n".join(parts)
-    note_title = f"📋 税务总局政策法规库 {now}"
-
-    note_id = post_ima(note_title, note_content)
-    if note_id:
-        print(f"[Tax Law] ✓ 已保存到IMA笔记 (note_id={note_id})")
-    else:
-        print(f"[Tax Law] IMA保存失败，输出到stdout:\n{note_content}")
+    print("\n".join(parts))
+    print(f"[monitor] {len(new)} 条新内容", file=sys.stderr)
 
     save_state(current_keys)
+    return 0
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

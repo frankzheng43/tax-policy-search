@@ -1,31 +1,24 @@
 # tax-policy-search
 
-Hermes Agent Skill — 自然语言搜索国家税务总局政策法规库
+Agent Skill — 自然语言搜索国家税务总局政策法规库（chinatax.gov.cn）
 
 ## 安装
 
 ```bash
-npx skills add frankzheng43/tax-policy-search --yes --global
+git clone https://github.com/frankzheng43/tax-policy-search.git
 ```
 
-或者手动安装：
+把整个目录放进你的 agent 的 skills 目录（或让 agent 直接指向该目录）即可。
+SKILL.md 里 `${SKILL_DIR}` 指该目录本身，用之前换成实际绝对路径。
 
-```bash
-mkdir -p ~/.hermes/skills/research/tax-policy-search
-curl -sL https://raw.githubusercontent.com/frankzheng43/tax-policy-search/main/SKILL.md \
-  -o ~/.hermes/skills/research/tax-policy-search/SKILL.md
-# 下载脚本和参考文件
-for f in search.py fetch_full.py save.py monitor.py; do
-  curl -sL "https://raw.githubusercontent.com/frankzheng43/tax-policy-search/main/scripts/$f" \
-    -o ~/.hermes/skills/research/tax-policy-search/scripts/$f
-done
-for f in api.md supplementary-tax-disclosure.md analysis-framework.md; do
-  curl -sL "https://raw.githubusercontent.com/frankzheng43/tax-policy-search/main/references/$f" \
-    -o ~/.hermes/skills/research/tax-policy-search/references/$f
-done
-```
+依赖：Python 3，无第三方包（全部用 stdlib）。
 
-依赖：Python 3（stdlib，无需额外包）
+## 环境变量（可选）
+
+| 变量 | 默认值 | 说明 |
+|---|---|---|
+| `TAX_SAVE_DIR` | `~/Documents/税务文件` | 保存全文的输出目录 |
+| `TAX_STATE_FILE` | `~/.tax_law_state.json` | monitor 的去重状态文件 |
 
 ## 功能
 
@@ -33,13 +26,12 @@ done
 - **筛选条件**：税种、年份、文件类型、时效、行业等
 - **查看全文**：含正文、表格（MD格式）、关联解读
 - **保存全文**：带 YAML frontmatter，含立法沿革（注释）
-- **下载附件**：PDF/WPS 保存到本地
 - **翻页导航**：上一页/下一页
-- **导出清单**：搜索结果导出为 Markdown
+- **定时监控**：`scripts/monitor.py` 检测新文件，有新内容输出 Markdown，可接任意通知渠道
 
 ## 使用方法
 
-在 Hermes Agent 中直接说：
+对 agent 直接说：
 
 ```
 帮我查一下2026年增值税的公告
@@ -79,6 +71,15 @@ annotation: "2016年12月25日..."
 
   [标题](url)
 ```
+
+## 定时监控
+
+```bash
+# 有新内容才输出，无新内容静默
+python3 scripts/monitor.py | your-notifier
+```
+
+配 cron 定时跑即可。状态文件记录已见过的文号，避免重复推送。
 
 ## API 参考
 

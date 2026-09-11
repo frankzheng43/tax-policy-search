@@ -2,7 +2,7 @@
 """Save full text as Markdown file. Usage: echo 'JSON' | python3 save.py"""
 import json, os, sys
 
-SAVE_DIR = "/sdcard/Documents/税务文件"
+SAVE_DIR = os.path.expanduser(os.environ.get("TAX_SAVE_DIR", "~/Documents/税务文件"))
 
 def save(data):
     os.makedirs(SAVE_DIR, exist_ok=True)
