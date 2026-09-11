@@ -9,7 +9,9 @@ git clone https://github.com/frankzheng43/tax-policy-search.git
 ```
 
 把整个目录放进你的 agent 的 skills 目录（或让 agent 直接指向该目录）即可。
-SKILL.md 里 `${SKILL_DIR}` 指该目录本身，用之前换成实际绝对路径。
+SKILL.md 里的路径都是**相对 skill 目录**的，不依赖任何 agent 专有占位符。
+
+用 `pi` 的话：`pi --skill ~/tax-policy-search`，或在 `settings.json` 里加 `"skills": ["~/tax-policy-search"]`。
 
 依赖：Python 3，无第三方包（全部用 stdlib）。
 

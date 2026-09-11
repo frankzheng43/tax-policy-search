@@ -20,7 +20,7 @@ Python 3。脚本只用 stdlib，无第三方包。环境里没有 Python 3 时�
 
 ## 执行方式
 
-脚本在 skill 目录的 `scripts/` 下，下文 `${SKILL_DIR}` 指该目录，用时替换为实际绝对路径。
+脚本在本 skill 目录的 `scripts/` 下。下文所有路径都**相对本 skill 目录** —— 执行前 `cd` 到该目录，或自行补成绝对路径。
 
 脚本都是命令行工具，用 shell 或代码执行工具直接跑即可。退出码非 0 就是失败，原因在 stderr。
 
@@ -37,7 +37,7 @@ Python 3。脚本只用 stdlib，无第三方包。环境里没有 Python 3 时�
 ## Step 1: 搜索
 
 ```bash
-echo '{"searchWord":"欠税公告办法"}' | python3 "${SKILL_DIR}/scripts/search.py"
+echo '{"searchWord":"欠税公告办法"}' | python3 scripts/search.py
 ```
 
 输出 `命中：0 条` 就是没搜到，换关键词或减少限定条件。
@@ -66,7 +66,7 @@ echo '{"searchWord":"欠税公告办法"}' | python3 "${SKILL_DIR}/scripts/searc
 ## Step 3: 查看全文
 
 ```bash
-python3 "${SKILL_DIR}/scripts/fetch_full.py" "条目URL"
+python3 scripts/fetch_full.py "条目URL"
 ```
 
 **原样展示脚本输出，不要重新组织、摘要或归并** —— 用户要看的就是原文。
@@ -76,7 +76,7 @@ python3 "${SKILL_DIR}/scripts/fetch_full.py" "条目URL"
 ## Step 4: 保存全文
 
 ```bash
-python3 "${SKILL_DIR}/scripts/fetch_full.py" --save "URL"
+python3 scripts/fetch_full.py --save "URL"
 ```
 
 标题、文号、类别、成文日期、时效自动从页面抓。存到 `~/Documents/税务文件/`，`TAX_SAVE_DIR` 可改。
@@ -84,7 +84,7 @@ python3 "${SKILL_DIR}/scripts/fetch_full.py" --save "URL"
 想把正文和关联阅读里的文档一并抓下来，加 `--depth N`（默认 0 = 不跟）：
 
 ```bash
-python3 "${SKILL_DIR}/scripts/fetch_full.py" --depth 1 "URL"
+python3 scripts/fetch_full.py --depth 1 "URL"
 ```
 
 实测规模（9 个种子文档）：`--depth 1` 通常 3–29 篇，`--depth 2` 到 29–55 篇，从 3 层往上只多 +1~6 篇。
@@ -94,7 +94,7 @@ python3 "${SKILL_DIR}/scripts/fetch_full.py" --depth 1 "URL"
 **已知数据、只需写文件时**，直接把结构化数据喂给 `save.py`：
 
 ```bash
-echo '{"title":"标题","doc_num":"文号","tax_type":"税种","effect_level":"类别","date":"成文日期","status":"时效","source":"URL","annotation":"立法沿革","text":"正文","related_interp":[],"related_docs":[]}' | python3 "${SKILL_DIR}/scripts/save.py"
+echo '{"title":"标题","doc_num":"文号","tax_type":"税种","effect_level":"类别","date":"成文日期","status":"时效","source":"URL","annotation":"立法沿革","text":"正文","related_interp":[],"related_docs":[]}' | python3 scripts/save.py
 ```
 
 ## 用户命令
