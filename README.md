@@ -1,6 +1,6 @@
 # tax-policy-search
 
-Agent Skill — 自然语言搜索国家税务总局政策法规库（chinatax.gov.cn）
+Agent Skill — 自然语言搜索国家税务总局政策法规库（chinatax.gov.cn），可查看、保存全文，也可顺带抓关联文档
 
 ## 安装
 
@@ -12,6 +12,8 @@ git clone https://github.com/frankzheng43/tax-policy-search.git
 SKILL.md 里 `${SKILL_DIR}` 指该目录本身，用之前换成实际绝对路径。
 
 依赖：Python 3，无第三方包（全部用 stdlib）。
+
+**不适用于**：企业公告、上市公司披露（那走巨潮资讯等另一类数据源）；会计处理 / 税务处理咨询（本 skill 只取原文，不做判断）。
 
 ## 环境变量（可选）
 
@@ -30,6 +32,7 @@ SKILL.md 里 `${SKILL_DIR}` 指该目录本身，用之前换成实际绝对路�
 - **保存全文**：带 YAML frontmatter，含立法沿革（注释）
 - **翻页导航**：上一页/下一页
 - **定时监控**：`scripts/monitor.py` 检测新文件，有新内容输出 Markdown，可接任意通知渠道
+- **内置重试**：chinatax 偶尔超时，所有网络请求自动重试 3 次（退避 1.5s / 3s）
 
 ## 使用方法
 
@@ -47,6 +50,14 @@ SKILL.md 里 `${SKILL_DIR}` 指该目录本身，用之前换成实际绝对路�
 找财税〔2024〕1号
 ```
 
+```
+下载这个链接 https://fgk.chinatax.gov.cn/zcfgk/c100011/c5245544/content.html
+```
+
+```
+保存全文
+```
+
 已经拿到链接时，跳过搜索，直接抓：
 
 ```bash
@@ -61,7 +72,7 @@ python3 scripts/fetch_full.py --depth 1 "http://fgk.chinatax.gov.cn/zcfgk/c10001
 ```
 
 `--depth` 只跟法规库详情页，附件（pdf/doc/图片）不跟；http/https 重复链接自动去重，每篇间隔 0.5s。
-depth 2 起会顺着一层层交叉引用带出很多文件（实测一个 2002 年的通知能带出 31 篇），慎用。
+实测规模：`--depth 1` 通常 3–6 篇，`--depth 2` 可达 30+ 篇（法规间交叉引用很多，一个 2002 年的通知就能带出 31 篇），除非确实要铺开否则用 1。
 
 ## 保存的文件格式
 

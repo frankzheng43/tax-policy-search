@@ -9,7 +9,7 @@
 状态文件默认 ~/.tax_law_state.json，用 TAX_STATE_FILE 可改。
 只用 stdlib，无需第三方包。
 """
-import json, os, sys
+import json, os, sys, time
 from datetime import datetime, timezone
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
@@ -34,11 +34,22 @@ def load_state():
 def save_state(keys):
     with open(STATE_FILE, "w") as f: json.dump(sorted(keys), f)
 
+def _read(url, timeout=20, tries=3):
+    """GET 带重试。chinatax 偶尔超时。"""
+    last = None
+    for i in range(tries):
+        try:
+            req = Request(url, headers={"User-Agent": UA, "Accept": "application/json"})
+            return urlopen(req, timeout=timeout).read()
+        except Exception as e:
+            last = e
+            if i < tries - 1:
+                time.sleep(1.5 * (i + 1))
+    raise last
+
 def main():
     try:
-        req = Request(API_URL + "?" + urlencode(PARAMS),
-                      headers={"User-Agent": UA, "Accept": "application/json"})
-        data = json.loads(urlopen(req, timeout=20).read().decode("utf-8", errors="replace"))
+        data = json.loads(_read(API_URL + "?" + urlencode(PARAMS)).decode("utf-8", errors="replace"))
     except Exception as e:
         print(f"[monitor] API 请求失败: {e}", file=sys.stderr)
         return 1

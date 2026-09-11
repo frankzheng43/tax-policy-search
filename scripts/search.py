@@ -1,20 +1,31 @@
 #!/usr/bin/env python3
 """Search 国家税务总局. Usage: echo '{"searchWord":"增值税"}' | python3 search.py"""
-import json, re, sys, urllib.request, urllib.parse
+import json, re, sys, time, urllib.request, urllib.parse
 
 API_URL = "https://www.chinatax.gov.cn/search5/search/s"
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
 BASE_PARAMS = {"siteCode": "bm29000002", "searchSiteName": "GSFFK", "indexCode": "1",
                "pageSize": "10", "pageNum": "0", "orderBy": "2"}
 
+def _read(url, timeout=20, tries=3):
+    """GET 带重试。chinatax 偶尔超时。"""
+    last = None
+    for i in range(tries):
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": UA})
+            return urllib.request.urlopen(req, timeout=timeout).read()
+        except Exception as e:
+            last = e
+            if i < tries - 1:
+                time.sleep(1.5 * (i + 1))
+    raise last
+
 def strip_html(t):
     return re.sub(r'<[^>]+>', '', t) if t else ""
 
 def search(params):
     p = {**BASE_PARAMS, **params}
-    req = urllib.request.Request(API_URL + "?" + urllib.parse.urlencode(p),
-                                 headers={"User-Agent": UA})
-    data = json.loads(urllib.request.urlopen(req, timeout=20).read())
+    data = json.loads(_read(API_URL + "?" + urllib.parse.urlencode(p)))
     result = data.get("searchResultAll", {})
     total = result.get("total", 0)
     items = result.get("searchTotal", [])

@@ -49,6 +49,19 @@ def html_table_to_md(html):
     out.insert(1, sep)
     return '\n'.join(out)
 
+def _read(url, data=None, timeout=20, tries=3):
+    """GET/POST 带重试。chinatax 偶尔超时，实测重试能救回来。"""
+    last = None
+    for i in range(tries):
+        try:
+            req = urllib.request.Request(url, data=data, headers={"User-Agent": UA})
+            return urllib.request.urlopen(req, timeout=timeout).read()
+        except Exception as e:
+            last = e
+            if i < tries - 1:
+                time.sleep(1.5 * (i + 1))
+    raise last
+
 def _meta(html, name):
     m = re.search(r'<meta[^>]*name="%s"[^>]*content="([^"]*)"' % name, html)
     return m.group(1).strip() if m else ""
@@ -68,8 +81,8 @@ def _guess_doc_num(text):
 
 def parse(url):
     """抓取 + 解析，返回可直接喂给 save.py 的 dict。"""
-    resp = urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": UA}), timeout=30)
-    html = resp.read().decode("utf-8", errors="replace")
+    resp = _read(url, timeout=30)
+    html = resp.decode("utf-8", errors="replace")
 
     # 正文
     m = re.search(r'class="arc_cont"[^>]*>(.*?)</div>', html, re.DOTALL)
@@ -125,10 +138,8 @@ def parse(url):
     aid_m = re.search(r'<meta[^>]*name="articleId"[^>]*content="(\d+)"', html)
     if aid_m:
         try:
-            req = urllib.request.Request("https://www.chinatax.gov.cn/queryManuscriptAssociation",
-                data=urllib.parse.urlencode({"id": aid_m.group(1)}).encode(),
-                headers={"User-Agent": UA})
-            assoc = json.loads(urllib.request.urlopen(req, timeout=15).read())
+            assoc = json.loads(_read("https://www.chinatax.gov.cn/queryManuscriptAssociation",
+                data=urllib.parse.urlencode({"id": aid_m.group(1)}).encode(), timeout=15))
             results = assoc.get("results", {}).get("data", {}).get("results", [])
             if results and len(results) > 1:
                 r = results[1]
