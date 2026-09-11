@@ -69,6 +69,7 @@ def parse(url):
             text = text.replace(old, new)
         for i, t in enumerate(tables):
             text = text.replace(f'__TABLE_{i}__', html_table_to_md(t))
+        text = re.sub(r'\r\n?', '\n', text)  # 网页是 CRLF，统一成 LF
         text = re.sub(r'\n{3,}', '\n\n', text).strip()
 
     # 立法沿革
@@ -76,6 +77,7 @@ def parse(url):
     zs = re.search(r'class="zscont">(.*?)</div>', html, re.DOTALL)
     if zs:
         annotation = re.sub(r'<[^>]+>', '', zs.group(1)).replace('&ensp;', ' ').replace('&nbsp;', ' ').strip()
+        annotation = re.sub(r'\s+', ' ', annotation)
 
     # 时效 / 成文日期（arc_date 里的两个 span）
     ad = re.search(r'class="arc_date"[^>]*>(.*?)</p>', html, re.DOTALL)
