@@ -14,7 +14,7 @@ tags: [税法, 政策法规, 国家税务总局, chinatax, 法规搜索]
 
 **所有 Python 代码都用 `execute_code` 工具执行，不要用 `terminal`。**
 
-脚本路径：`os.path.expanduser("~/.hermes/skills/research/tax-policy-search/scripts/")`
+脚本路径：`${HERMES_SKILL_DIR}/scripts/`（加载时自动替换为绝对路径）
 
 ## 状态变量（会话内保持）
 
@@ -27,7 +27,7 @@ tags: [税法, 政策法规, 国家税务总局, chinatax, 法规搜索]
 
 ```python
 import subprocess, json, os
-script = os.path.expanduser("~/.hermes/skills/research/tax-policy-search/scripts/search.py")
+script = "${HERMES_SKILL_DIR}/scripts/search.py"
 params = {
     # 以下按用户意图填写：
     # "xxgkSonTaxPolicy": "增值税",     # 税种
@@ -67,7 +67,7 @@ else:
 
 ```python
 import subprocess, os
-script = os.path.expanduser("~/.hermes/skills/research/tax-policy-search/scripts/fetch_full.py")
+script = "${HERMES_SKILL_DIR}/scripts/fetch_full.py"
 url = "ITEMS_URL"  # 替换为用户选择的条目URL
 r = subprocess.run(["python3", script, url], capture_output=True, text=True)
 print(r.stdout)
@@ -82,7 +82,7 @@ print(r.stdout)
 
 ```python
 import subprocess, json, os
-script = os.path.expanduser("~/.hermes/skills/research/tax-policy-search/scripts/save.py")
+script = "${HERMES_SKILL_DIR}/scripts/save.py"
 data = {
     "title": "标题", "doc_num": "文号", "tax_type": "税种",
     "effect_level": "类别", "date": "成文日期", "status": "时效",
