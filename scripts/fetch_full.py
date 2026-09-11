@@ -64,13 +64,30 @@ def parse(url):
         for i, t in enumerate(tables):
             raw = raw.replace(t, f'\n__TABLE_{i}__\n')
         text = re.sub(r'<a[^>]*href=["\']([^"\']+)["\'][^>]*>(.*?)</a>', r'[\2](\1)', raw, flags=re.DOTALL)
-        text = re.sub(r'<[^>]+>', '\n', text)
+        # 只有块级标签断段；内联标签（span/strong…）直接去掉，
+        # 否则「第一条」会和后面的正文分家。
+        text = re.sub(r'</p>|</div>|</tr>|</h[1-6]>', '\n\n', text, flags=re.I)
+        text = re.sub(r'<br\s*/?>', '\n', text, flags=re.I)
+        text = re.sub(r'<[^>]+>', '', text)
         for old, new in [('&ensp;', ' '), ('&nbsp;', ' '), ('&ldquo;', '"'), ('&rdquo;', '"'), ('&mdash;', '—'), ('&thinsp;', ' ')]:
             text = text.replace(old, new)
         for i, t in enumerate(tables):
             text = text.replace(f'__TABLE_{i}__', html_table_to_md(t))
         text = re.sub(r'\r\n?', '\n', text)  # 网页是 CRLF，统一成 LF
+        # 行首缩进统一去掉：原文一半靠 CSS text-indent、一半靠字面 &ensp;/　　，
+        # 提取时分不出来，留着就是参差不齐（且 ≥4 个半角空格在 Markdown 里会变代码块）。
+        # 分段交给空行。
+        text = re.sub(r'^[ \t\u3000]+|[ \t\u3000]+$', '', text, flags=re.M)
         text = re.sub(r'\n{3,}', '\n\n', text).strip()
+
+        # 有些文种（如税率表）正文整篇就是一张图，提不出文字。
+        # 图片相对地址是「<articleId>/images/<文件名>」，拼在页面目录后面。
+        if not text:
+            base = url.rsplit('/', 1)[0]
+            imgs = [s if s.startswith('http') else f"{base}/{s}"
+                    for s in re.findall(r'<img[^>]*src=["\']([^"\']+)["\']', raw, flags=re.I)]
+            if imgs:
+                text = "本文正文为图片，未提取到文字。原文图片：\n\n" + "\n".join(f"- {u}" for u in imgs)
 
     # 立法沿革
     annotation = ""
