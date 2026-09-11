@@ -88,6 +88,15 @@ python3 "${SKILL_DIR}/scripts/fetch_full.py" --save "URL"
 
 标题、文号、类别、成文日期、时效自动从页面抓，直接存成带 frontmatter 的 Markdown。
 
+想把正文和相关阅读里的链接一并抓下来，加 `--depth N`（默认 0 = 不跟）：
+
+```bash
+python3 "${SKILL_DIR}/scripts/fetch_full.py" --depth 1 "URL"
+```
+
+1 = 只跟本文里的链接，2 = 再跟一层，以此类推。附件（pdf/doc/图片）不跟，
+http/https 重复链接自动去重，每篇之间停 0.5s。depth 2 起会带出很多上下游文件，慎用。
+
 **已知数据、要手动拼字段时**，把数据传给 save.py：
 
 ```python
@@ -130,7 +139,8 @@ print(r.stdout)
 ## 配套脚本
 
 - `scripts/search.py` — 搜索法规库，stdin 收 JSON 参数。
-- `scripts/fetch_full.py` — 给定 URL 抓全文；`--save` 直接存 Markdown，`--json` 输出结构化数据（喂给 save.py）。
+- `scripts/fetch_full.py` — 给定 URL 抓全文；`--save` 直接存 Markdown，`--json` 输出结构化数据（喂给 save.py），
+  `--depth N` 顺带跟正文/关联里的文档链接（默认 0 = 不跟）。
 - `scripts/save.py` — 把结构化数据写成带 frontmatter 的 Markdown 文件。
 - `scripts/monitor.py` — 轮询法规库，有新内容时把 Markdown 打到 stdout（无新内容则静默，退出码 0）。
   自己接通知渠道，例如 `python3 monitor.py | your-notifier`，或用 cron 定时跑。

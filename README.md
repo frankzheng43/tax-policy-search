@@ -26,6 +26,7 @@ SKILL.md 里 `${SKILL_DIR}` 指该目录本身，用之前换成实际绝对路�
 - **筛选条件**：税种、年份、文件类型、时效、行业等
 - **查看全文**：含正文、表格（MD格式）、关联解读
 - **给链接直接抓**：`fetch_full.py --save <url>` 一步存成 Markdown
+- **顺带抓关联文档**：加 `--depth N`（默认关），把正文和关联阅读里的文档一并存下来
 - **保存全文**：带 YAML frontmatter，含立法沿革（注释）
 - **翻页导航**：上一页/下一页
 - **定时监控**：`scripts/monitor.py` 检测新文件，有新内容输出 Markdown，可接任意通知渠道
@@ -54,7 +55,13 @@ python3 scripts/fetch_full.py "http://fgk.chinatax.gov.cn/zcfgk/c100011/c5245544
 
 # 直接存成 Markdown（标题、文号、类别、成文日期、时效自动抓）
 python3 scripts/fetch_full.py --save "http://fgk.chinatax.gov.cn/zcfgk/c100011/c5245544/content.html"
+
+# 顺带把正文/关联里的文档也抓下来，跟 1 层（默认 0 = 不跟）
+python3 scripts/fetch_full.py --depth 1 "http://fgk.chinatax.gov.cn/zcfgk/c100011/c5245544/content.html"
 ```
+
+`--depth` 只跟法规库详情页，附件（pdf/doc/图片）不跟；http/https 重复链接自动去重，每篇间隔 0.5s。
+depth 2 起会顺着一层层交叉引用带出很多文件（实测一个 2002 年的通知能带出 31 篇），慎用。
 
 ## 保存的文件格式
 

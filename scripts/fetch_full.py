@@ -2,13 +2,29 @@
 """Fetch full text of a tax policy doc from chinatax.gov.cn.
 
 用法：
-    python3 fetch_full.py <URL>            # 打印全文（正文+立法沿革+关联）
-    python3 fetch_full.py --save <URL>     # 直接存成 Markdown（等价于 Step 3+4）
-    python3 fetch_full.py --json <URL>     # 输出 save.py 可吃的 JSON
+    python3 fetch_full.py <URL>              # 打印全文（正文+立法沿革+关联）
+    python3 fetch_full.py --save <URL>       # 直接存成 Markdown
+    python3 fetch_full.py --json <URL>       # 输出 save.py 可吃的 JSON
+    python3 fetch_full.py --depth 1 --save <URL>   # 顺带把正文/关联里的文档一起存（默认关）
+
+--depth N：跟到第 N 层。0（默认）= 不跟；1 = 只跟本文里的链接；以此类推。
+附件（pdf/doc/图片等）不跟。每篇之间停 0.5s。
 """
-import re, sys, os, json, urllib.request, urllib.parse
+import re, sys, os, json, time, urllib.request, urllib.parse
 
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+
+# 只有法规库的详情页才值得跟；附件/图片/pdf 等一律不跟。
+DOC_LINK_RE = re.compile(r'^https?://(?:www\.)?(?:fgk\.)?chinatax\.gov\.cn/zcfgk/.+/content\.html$', re.I)
+NON_DOC_RE = re.compile(r'\.(?:pdf|docx?|wps|xlsx?|pptx?|zip|rar|jpe?g|png|gif|bmp)(?:[?#]|$)', re.I)
+
+def _is_doc_link(u):
+    return bool(DOC_LINK_RE.match(u)) and not NON_DOC_RE.search(u)
+
+def _canon(u):
+    """URL 去重键：http/https 视为同一篇（正文里的链接是 https，关联接口给的是 http）。"""
+    m = re.match(r'^https?://(?:www\.)?([^/]+)(/.*)?$', u, re.I)
+    return (m.group(1).lower() + (m.group(2) or '')).rstrip('/') if m else u
 
 def html_table_to_md(html):
     """HTML table -> MD table. Handles colspan only (rowspan is rare in tax docs)."""
@@ -142,6 +158,32 @@ def parse(url):
         "related_docs": related_docs,
     }
 
+def crawl(url, depth, delay=0.5):
+    """广度优先抓 url 及其正文/关联里的文档链接，共 depth 层。
+
+    ponytail: 串行 + 固定延时，对 gov 站礼貌且够用；量大了再谈并发。
+    """
+    seen, queue, out = set(), [(url, 0)], []
+    while queue:
+        u, d = queue.pop(0)
+        key = _canon(u)
+        if key in seen:
+            continue
+        seen.add(key)
+        if out:
+            time.sleep(delay)
+        try:
+            data = parse(u)
+        except Exception as e:
+            print(f"[skip] {u} — {e}", file=sys.stderr)
+            continue
+        out.append(data)
+        if d < depth:
+            links = re.findall(r'\]\((https?://[^)\s]+)\)', data["text"])
+            links += [f"http://fgk.chinatax.gov.cn{p}" for _, p in data["related_interp"] + data["related_docs"]]
+            queue += [(l, d + 1) for l in links if _is_doc_link(l) and _canon(l) not in seen]
+    return out
+
 def fetch(url):
     """打印人类可读的全文。"""
     d = parse(url)
@@ -159,19 +201,33 @@ def fetch(url):
 
 def main():
     args = sys.argv[1:]
-    save_mode = "--save" in args
-    json_mode = "--json" in args
-    urls = [a for a in args if not a.startswith("--")]
+    flags, urls, depth, i = set(), [], 0, 0
+    while i < len(args):
+        a = args[i]
+        if a == "--depth":
+            i += 1
+            depth = int(args[i])
+        elif a.startswith("--depth="):
+            depth = int(a.split("=", 1)[1])
+        elif a.startswith("--"):
+            flags.add(a)
+        else:
+            urls.append(a)
+        i += 1
     if not urls:
         print(__doc__.strip())
         return 1
     url = urls[0]
-    if save_mode:
+    if "--json" in flags:
+        print(json.dumps(parse(url), ensure_ascii=False, indent=2))
+    elif "--save" in flags or depth:
         sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
         from save import save as save_file
-        save_file(parse(url))
-    elif json_mode:
-        print(json.dumps(parse(url), ensure_ascii=False, indent=2))
+        docs = crawl(url, depth) if depth else [parse(url)]
+        for d in docs:
+            save_file(d)
+        if len(docs) > 1:
+            print(f"共 {len(docs)} 篇（含关联文档）")
     else:
         fetch(url)
     return 0
